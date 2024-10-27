@@ -10,11 +10,13 @@ router = Router()
 
 # Define states for editing the habit
 class EditHabit(StatesGroup):
-    select_field = State()  # What to edit (name/time)
+    select_field = State()  # What to edit (name/time/date/day_of_week/day_of_month)
     select_habit = State()  # Which habit to edit
     edit_name = State()
     edit_time = State()
     edit_date = State()
+    edit_day_of_week = State()
+    edit_day_of_month = State()
 
 
 # Function to display edit habit menu
@@ -24,6 +26,8 @@ async def edit_habit_menu(message: types.Message, state: FSMContext):
     keyboard_builder.button(text="Name", callback_data="edit_name")
     keyboard_builder.button(text="Time", callback_data="edit_time")
     keyboard_builder.button(text="Date", callback_data="edit_date")
+    keyboard_builder.button(text="Day of Week", callback_data="edit_day-of-week")
+    keyboard_builder.button(text="Day of Month", callback_data="edit_day-of-month")
     keyboard_builder.adjust(1)
     keyboard = keyboard_builder.as_markup()
     await message.answer("What do you want to edit?", reply_markup=keyboard)
@@ -54,7 +58,7 @@ async def edit_select_callback(callback_query: types.CallbackQuery, state: FSMCo
     keyboard_builder.adjust(1)
     keyboard = keyboard_builder.as_markup()
     await callback_query.answer()
-    await callback_query.message.answer(
+    await callback_query.message.edit_text(
         "Select a habit to edit:", reply_markup=keyboard
     )
 
@@ -88,6 +92,19 @@ async def edit_habit_callback(callback_query: types.CallbackQuery, state: FSMCon
             await callback_query.answer()
             await callback_query.message.answer(
                 "Enter the new date in YYYY-MM-DD format:"
+            )
+        elif edit_type == "day-of-week":
+            await state.set_state(EditHabit.edit_day_of_week)
+            await callback_query.answer()
+            await callback_query.message.edit_text(
+                "Select the new day of the week:",
+                reply_markup=create_day_of_week_keyboard(),
+            )
+        elif edit_type == "day-of-month":
+            await state.set_state(EditHabit.edit_day_of_month)
+            await callback_query.answer()
+            await callback_query.message.answer(
+                "Select the new day of the month (1-31):"
             )
     else:
         await callback_query.message.answer("Invalid habit selection.")
@@ -130,7 +147,7 @@ async def get_new_habit_time(message: types.Message, state: FSMContext):
         await state.clear()
 
 
-# Handler to capture  new habit date
+# Handler to capture new habit date
 @router.message(EditHabit.edit_date)
 async def get_new_habit_date(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
@@ -143,6 +160,64 @@ async def get_new_habit_date(message: types.Message, state: FSMContext):
         habits[habit_index]["date"] = new_habit_date
         await state.clear()
         await message.answer("Habit date updated successfully!")
+    else:
+        await message.answer("Invalid habit selection.")
+        await state.clear()
+
+
+def create_day_of_week_keyboard():
+    keyboard_builder = InlineKeyboardBuilder()
+    days_of_week = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    for day in days_of_week:
+        keyboard_builder.button(text=day, callback_data=f"day_{day}")
+    keyboard_builder.adjust(2)
+    return keyboard_builder.as_markup()
+
+
+# Handler to capture new habit day of week
+@router.callback_query(
+    EditHabit.edit_day_of_week, lambda call: call.data.startswith("day_")
+)
+async def get_new_habit_day_of_week(
+    callback_query: types.CallbackQuery, state: FSMContext
+):
+    user_id = callback_query.from_user.id
+    new_day_of_week = callback_query.data.split("_")[1]
+    habit_data = await state.get_data()
+    habit_index = habit_data.get("habit_index")
+    habits = user_data.get(user_id, [])
+
+    if 0 <= habit_index < len(habits):
+        habits[habit_index]["day_of_week"] = new_day_of_week
+        await state.clear()
+        await callback_query.answer()
+        await callback_query.message.answer("Habit day of week updated successfully!")
+    else:
+        await callback_query.message.answer("Invalid habit selection.")
+        await state.clear()
+
+
+# Handler to capture new habit day of month
+@router.message(EditHabit.edit_day_of_month)
+async def get_new_habit_name(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    new_day_of_month = int(message.text)
+    habit_data = await state.get_data()
+    habit_index = habit_data.get("habit_index")
+    habits = user_data.get(user_id, [])
+
+    if 0 <= habit_index < len(habits):
+        habits[habit_index]["day_of_month"] = new_day_of_month
+        await state.clear()
+        await message.answer("Habit day of the month updated successfully!")
     else:
         await message.answer("Invalid habit selection.")
         await state.clear()

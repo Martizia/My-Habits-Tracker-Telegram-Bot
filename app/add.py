@@ -77,9 +77,9 @@ async def schedule_callback(callback_query: types.CallbackQuery, state: FSMConte
         ]
         for day in days_of_week:
             keyboard_builder.button(text=day, callback_data=f"day_of_week_{day}")
-        keyboard_builder.adjust(1)
+        keyboard_builder.adjust(2)
         keyboard = keyboard_builder.as_markup()
-
+        await callback_query.message.answer()
         await callback_query.message.edit_text(
             "Choose a day of the week:", reply_markup=keyboard
         )
