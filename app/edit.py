@@ -14,6 +14,7 @@ class EditHabit(StatesGroup):
     select_habit = State()  # Which habit to edit
     edit_name = State()
     edit_time = State()
+    edit_date = State()
 
 
 # Function to display edit habit menu
@@ -22,6 +23,7 @@ async def edit_habit_menu(message: types.Message, state: FSMContext):
     keyboard_builder = InlineKeyboardBuilder()
     keyboard_builder.button(text="Name", callback_data="edit_name")
     keyboard_builder.button(text="Time", callback_data="edit_time")
+    keyboard_builder.button(text="Date", callback_data="edit_date")
     keyboard_builder.adjust(1)
     keyboard = keyboard_builder.as_markup()
     await message.answer("What do you want to edit?", reply_markup=keyboard)
@@ -51,6 +53,7 @@ async def edit_select_callback(callback_query: types.CallbackQuery, state: FSMCo
         keyboard_builder.button(text=habit_name, callback_data=f"select_habit_{i}")
     keyboard_builder.adjust(1)
     keyboard = keyboard_builder.as_markup()
+    await callback_query.answer()
     await callback_query.message.answer(
         "Select a habit to edit:", reply_markup=keyboard
     )
@@ -74,10 +77,18 @@ async def edit_habit_callback(callback_query: types.CallbackQuery, state: FSMCon
 
         if edit_type == "name":
             await state.set_state(EditHabit.edit_name)
+            await callback_query.answer()
             await callback_query.message.answer("Enter the new name for the habit:")
         elif edit_type == "time":
             await state.set_state(EditHabit.edit_time)
+            await callback_query.answer()
             await callback_query.message.answer("Enter the new time in HH:MM format:")
+        elif edit_type == "date":
+            await state.set_state(EditHabit.edit_date)
+            await callback_query.answer()
+            await callback_query.message.answer(
+                "Enter the new date in YYYY-MM-DD format:"
+            )
     else:
         await callback_query.message.answer("Invalid habit selection.")
         await state.clear()
@@ -114,6 +125,24 @@ async def get_new_habit_time(message: types.Message, state: FSMContext):
         habits[habit_index]["time"] = new_habit_time
         await state.clear()
         await message.answer("Habit time updated successfully!")
+    else:
+        await message.answer("Invalid habit selection.")
+        await state.clear()
+
+
+# Handler to capture  new habit date
+@router.message(EditHabit.edit_date)
+async def get_new_habit_date(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    new_habit_date = message.text
+    habit_data = await state.get_data()
+    habit_index = habit_data.get("habit_index")
+    habits = user_data.get(user_id, [])
+
+    if 0 <= habit_index < len(habits):
+        habits[habit_index]["date"] = new_habit_date
+        await state.clear()
+        await message.answer("Habit date updated successfully!")
     else:
         await message.answer("Invalid habit selection.")
         await state.clear()

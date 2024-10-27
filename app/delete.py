@@ -39,6 +39,7 @@ async def delete_habit_callback(callback_query: types.CallbackQuery, state: FSMC
     habits = user_data.get(user_id, [])
     if 0 <= habit_index < len(habits):
         deleted_habit = habits.pop(habit_index)
+        await callback_query.answer()
         await callback_query.message.answer(
             f"Habit '{deleted_habit['name']}' deleted successfully!"
         )
