@@ -50,7 +50,7 @@ async def menu_message_handler(message: types.Message, state: FSMContext):
         await state.set_state(AddHabit.name)
         await message.answer("Enter the name of the habit:")
     elif option == "Edit Habit":
-        await state.set_state(EditHabit.select_field)
+        await state.set_state(EditHabit.select_habit)
         await edit_habit_menu(message, state)
     elif option == "Delete Habit":
         await state.set_state(DeleteHabit.delete_select)

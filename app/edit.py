@@ -10,8 +10,8 @@ router = Router()
 
 # Define states for editing the habit
 class EditHabit(StatesGroup):
-    select_field = State()  # What to edit (name/time/date/day_of_week/day_of_month)
     select_habit = State()  # Which habit to edit
+    select_field = State()  # What to edit (name/time/date/day_of_week/day_of_month)
     edit_name = State()
     edit_time = State()
     edit_date = State()
@@ -21,33 +21,11 @@ class EditHabit(StatesGroup):
 
 # Function to display edit habit menu
 async def edit_habit_menu(message: types.Message, state: FSMContext):
-    await state.set_state(EditHabit.select_field)
-    keyboard_builder = InlineKeyboardBuilder()
-    keyboard_builder.button(text="Name", callback_data="edit_name")
-    keyboard_builder.button(text="Time", callback_data="edit_time")
-    keyboard_builder.button(text="Date", callback_data="edit_date")
-    keyboard_builder.button(text="Day of Week", callback_data="edit_day-of-week")
-    keyboard_builder.button(text="Day of Month", callback_data="edit_day-of-month")
-    keyboard_builder.adjust(1)
-    keyboard = keyboard_builder.as_markup()
-    await message.answer("What do you want to edit?", reply_markup=keyboard)
-
-
-# Callback query handler for selecting what to edit
-@router.callback_query(
-    EditHabit.select_field, lambda call: call.data.startswith("edit_")
-)
-async def edit_select_callback(callback_query: types.CallbackQuery, state: FSMContext):
-    option = callback_query.data.split("_")[1]
-
-    # Store the edit type for later use
-    await state.update_data(edit_type=option)
     await state.set_state(EditHabit.select_habit)
-
-    user_id = callback_query.from_user.id
+    user_id = message.from_user.id
     habits = user_data.get(user_id, [])
     if not habits:
-        await callback_query.message.answer("No habits found.")
+        await message.answer("No habits found.")
         await state.clear()
         return
 
@@ -57,10 +35,7 @@ async def edit_select_callback(callback_query: types.CallbackQuery, state: FSMCo
         keyboard_builder.button(text=habit_name, callback_data=f"select_habit_{i}")
     keyboard_builder.adjust(1)
     keyboard = keyboard_builder.as_markup()
-    await callback_query.answer()
-    await callback_query.message.edit_text(
-        "Select a habit to edit:", reply_markup=keyboard
-    )
+    await message.answer("Select a habit to edit:", reply_markup=keyboard)
 
 
 # Callback query handler for selecting which habit to edit
@@ -73,42 +48,67 @@ async def edit_habit_callback(callback_query: types.CallbackQuery, state: FSMCon
     habits = user_data.get(user_id, [])
 
     if 0 <= habit_index < len(habits):
-        # Get the previously stored edit type
-        data = await state.get_data()
-        edit_type = data.get("edit_type")
-
+        habit = habits[habit_index]
         await state.update_data(habit_index=habit_index)
+        await state.set_state(EditHabit.select_field)
 
-        if edit_type == "name":
-            await state.set_state(EditHabit.edit_name)
-            await callback_query.answer()
-            await callback_query.message.answer("Enter the new name for the habit:")
-        elif edit_type == "time":
-            await state.set_state(EditHabit.edit_time)
-            await callback_query.answer()
-            await callback_query.message.answer("Enter the new time in HH:MM format:")
-        elif edit_type == "date":
-            await state.set_state(EditHabit.edit_date)
-            await callback_query.answer()
-            await callback_query.message.answer(
-                "Enter the new date in YYYY-MM-DD format:"
+        keyboard_builder = InlineKeyboardBuilder()
+        keyboard_builder.button(text="Name", callback_data="edit_name")
+        keyboard_builder.button(text="Time", callback_data="edit_time")
+        if "date" in habit:
+            keyboard_builder.button(text="Date", callback_data="edit_date")
+        if "day_of_week" in habit:
+            keyboard_builder.button(
+                text="Day of Week", callback_data="edit_day-of-week"
             )
-        elif edit_type == "day-of-week":
-            await state.set_state(EditHabit.edit_day_of_week)
-            await callback_query.answer()
-            await callback_query.message.edit_text(
-                "Select the new day of the week:",
-                reply_markup=create_day_of_week_keyboard(),
+        if "day_of_month" in habit:
+            keyboard_builder.button(
+                text="Day of Month", callback_data="edit_day-of-month"
             )
-        elif edit_type == "day-of-month":
-            await state.set_state(EditHabit.edit_day_of_month)
-            await callback_query.answer()
-            await callback_query.message.answer(
-                "Select the new day of the month (1-31):"
-            )
+        keyboard_builder.adjust(1)
+        keyboard = keyboard_builder.as_markup()
+        await callback_query.answer()
+        await callback_query.message.answer(
+            "What do you want to edit?", reply_markup=keyboard
+        )
     else:
         await callback_query.message.answer("Invalid habit selection.")
         await state.clear()
+
+
+# Callback query handler for selecting what to edit
+@router.callback_query(
+    EditHabit.select_field, lambda call: call.data.startswith("edit_")
+)
+async def edit_select_callback(callback_query: types.CallbackQuery, state: FSMContext):
+    option = callback_query.data.split("_")[1]
+
+    # Store the edit type for later use
+    await state.update_data(edit_type=option)
+
+    if option == "name":
+        await state.set_state(EditHabit.edit_name)
+        await callback_query.answer()
+        await callback_query.message.answer("Enter the new name for the habit:")
+    elif option == "time":
+        await state.set_state(EditHabit.edit_time)
+        await callback_query.answer()
+        await callback_query.message.answer("Enter the new time in HH:MM format:")
+    elif option == "date":
+        await state.set_state(EditHabit.edit_date)
+        await callback_query.answer()
+        await callback_query.message.answer("Enter the new date in YYYY-MM-DD format:")
+    elif option == "day-of-week":
+        await state.set_state(EditHabit.edit_day_of_week)
+        await callback_query.answer()
+        await callback_query.message.answer(
+            "Select the new day of the week:",
+            reply_markup=create_day_of_week_keyboard(),
+        )
+    elif option == "day-of-month":
+        await state.set_state(EditHabit.edit_day_of_month)
+        await callback_query.answer()
+        await callback_query.message.answer("Enter the new day of the month:")
 
 
 # Handler to capture new habit name
