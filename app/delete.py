@@ -12,7 +12,7 @@ router = Router()
 
 # Define states for deleting a habit
 class DeleteHabit(StatesGroup):
-    select_habit = State()
+    delete_select = State()
 
 
 # Function to display delete habit menu
